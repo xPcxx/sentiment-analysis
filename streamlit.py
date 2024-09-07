@@ -1,83 +1,49 @@
 import streamlit as st
-from joblib import load
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.ticker as ticker
-import re
-import string
+import joblib
 import nltk
+from nltk.tokenize import sent_tokenize, word_tokenize
 from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize, sent_tokenize
-from nltk.stem import LancasterStemmer, WordNetLemmatizer
+from nltk.stem import WordNetLemmatizer
+from nltk.stem import LancasterStemmer
+import string
 
-# Ensure NLTK data is downloaded only if necessary
-try:
-    stop_words = set(stopwords.words('english'))
-    nltk.data.find('tokenizers/punkt')
-except LookupError:
-    nltk.download('stopwords')
-    nltk.download('punkt')
-    nltk.download('wordnet')
-    stop_words = set(stopwords.words('english'))
+# Download necessary NLTK data (punkt, stopwords, wordnet)
+nltk.download('punkt')
+nltk.download('stopwords')
+nltk.download('wordnet')
 
-# Load your Naive Bayes model and TfidfVectorizer
-try:
-    nb_model_loaded = load('naive_bayes_model.joblib')
-    tfidf_vectorizer_loaded = load('tfidf_vectorizer.joblib')
-except FileNotFoundError:
-    st.error("Model or vectorizer file not found. Ensure both 'naive_bayes_model.joblib' and 'tfidf_vectorizer.joblib' are present.")
-    st.stop()
+# Load saved models and vectorizer
+model = joblib.load('saved_model_naive_bayes.joblib')
+tfidf_vectorizer_loaded = joblib.load('saved_vectorizer.joblib')
 
-# Initialize Lancaster stemmer and lemmatizer
-lancaster_stemmer = LancasterStemmer()
+# Initialize the lemmatizer, stemmer, and stop words
 lemmatizer = WordNetLemmatizer()
+stemmer = LancasterStemmer()
+stop_words = set(stopwords.words('english'))
 
-# Define preprocessing functions
-def remove_html_tags(text):
-    pattern = re.compile('<.*?>')
-    return pattern.sub('', text)
-
-def remove_punc(text):
-    return text.translate(str.maketrans('', '', string.punctuation))
-
-def remove_stopwords(text):
-    words = text.split()
-    filtered_words = [word for word in words if word not in stop_words]
-    return " ".join(filtered_words)
-
-def remove_emoji(text):
-    emoji_pattern = re.compile("["
-                               u"\U0001F600-\U0001F64F"  # emoticons
-                               u"\U0001F300-\U0001F5FF"  # symbols & pictographs
-                               u"\U0001F680-\U0001F6FF"  # transport & map symbols
-                               u"\U0001F1E0-\U0001F1FF"  # flags (iOS)
-                               "]+", flags=re.UNICODE)
-    return emoji_pattern.sub(r'', text)
-
-def apply_stemming(words):
-    return [lancaster_stemmer.stem(word) for word in words]
-
-def apply_lemmatization(words):
-    return [lemmatizer.lemmatize(word) for word in words]
-
-# Full text preprocessing pipeline
+# Function to preprocess text
 def preprocess_text(text):
+    # Convert to lowercase
     text = text.lower()
-    text = remove_html_tags(text)
-    text = remove_punc(text)
-    text = remove_stopwords(text)
-    text = remove_emoji(text)
-    
+
+    # Remove punctuation
+    text = text.translate(str.maketrans('', '', string.punctuation))
+
     # Tokenization
     sentences = sent_tokenize(text)
     tokenized_sentences = [word_tokenize(sentence) for sentence in sentences]
-    
+
     # Stemming and Lemmatization
-    stemmed_sentences = [apply_stemming(sentence) for sentence in tokenized_sentences]
-    lemmatized_sentences = [apply_lemmatization(sentence) for sentence in stemmed_sentences]
-    
-    return ' '.join([word for sublist in lemmatized_sentences for word in sublist])
+    preprocessed_text = []
+    for sentence in tokenized_sentences:
+        for word in sentence:
+            if word not in stop_words:
+                # Apply lemmatization followed by stemming
+                lemmatized_word = lemmatizer.lemmatize(word)
+                stemmed_word = stemmer.stem(lemmatized_word)
+                preprocessed_text.append(stemmed_word)
+
+    return ' '.join(preprocessed_text)
 
 # Function for making predictions and displaying results
 def predict_and_display(reviews):
@@ -87,55 +53,40 @@ def predict_and_display(reviews):
     # Transform the preprocessed reviews using the vectorizer
     transformed_reviews = tfidf_vectorizer_loaded.transform(preprocessed_reviews)
 
-    # Predict sentiment using the Naive Bayes model
-    predictions = nb_model_loaded.predict(transformed_reviews)
-
-    # Map numeric predictions to labels (assuming 1 = Positive, 0 = Negative)
-    sentiment_labels = ['Positive' if pred == 1 else 'Negative' for pred in predictions]
+    # Make predictions using the loaded model
+    predictions = model.predict(transformed_reviews)
 
     # Display results
     for i, review in enumerate(reviews):
-        st.write(f"Review: {review}")
-        st.write(f"Predicted Sentiment: {sentiment_labels[i]}")
+        st.write(f"Review {i+1}: {review}")
+        st.write(f"Predicted Sentiment: {'Positive' if predictions[i] == 1 else 'Negative'}")
 
-# Streamlit application starts here
+# Main function
 def main():
-    # Title of your web app
-    st.title("Amazon Product Review Sentiment Analysis App")
+    st.title("Sentiment Analysis App")
+    
+    st.write("Enter a review to predict its sentiment:")
 
-    # Sidebar for navigation
-    st.sidebar.title("Options")
-    option = st.sidebar.selectbox("Choose how to input data", ["Enter text", "Upload file"])
+    # Single review input
+    user_input = st.text_input("Enter review text:")
 
-    if option == "Enter text":
-        # Text box for user input
-        user_input = st.text_input("Enter a product review to check sentiment:")
+    if user_input:  # Check if the input is not empty
+        reviews = [user_input]  # Treat the user input as a review body
+        predict_and_display(reviews)  # Single review prediction
+    else:
+        st.error("Please enter a review for prediction.")
 
-        # Predict button
-        if st.button('Predict'):
-            if user_input:  # Check if the input is not empty
-                # Treat the user input as a review body
-                reviews = [user_input]
-                predict_and_display(reviews)  # Single review prediction
-            else:
-                st.error("Please enter a review for prediction.")
-    else:  # Option to upload file
-        uploaded_file = st.file_uploader("Choose a file", type=['txt', 'csv'])
-        if uploaded_file is not None:
-            if uploaded_file.type == "text/csv" or uploaded_file.name.endswith('.csv'):
-                data = pd.read_csv(uploaded_file)
-                if 'review_body' in data.columns:
-                    reviews = data['review_body'].tolist()
-                else:
-                    st.error("'review_body' column not found in the uploaded CSV file.")
-                    return
-            else:  # Assume text file
-                data = pd.read_table(uploaded_file, header=None, names=['review_body'])
-                reviews = data['review_body'].tolist()
-
-            # Check if the file has content
-            if not data.empty:
-                predict_and_display(reviews)  # File-based prediction
+    # File upload option
+    uploaded_file = st.file_uploader("Choose a file (CSV format)", type=["csv"])
+    
+    if uploaded_file is not None:
+        import pandas as pd
+        df = pd.read_csv(uploaded_file)
+        if 'review_body' in df.columns:
+            reviews = df['review_body'].tolist()
+            predict_and_display(reviews)
+        else:
+            st.error("The file does not contain the 'review_body' column.")
 
 if __name__ == '__main__':
     main()
