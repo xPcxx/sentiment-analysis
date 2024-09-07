@@ -9,6 +9,7 @@ import string
 
 # Download necessary NLTK data (punkt, stopwords, wordnet)
 nltk.download('punkt')
+nltk.download('punkt_tab')
 nltk.download('stopwords')
 nltk.download('wordnet')
 
@@ -24,7 +25,7 @@ stop_words = set(stopwords.words('english'))
 # Function to preprocess text
 def preprocess_text(text):
     # Convert to lowercase
-    text = text.lower()
+    text = str(text).lower()
 
     # Remove punctuation
     text = text.translate(str.maketrans('', '', string.punctuation))
@@ -47,6 +48,20 @@ def preprocess_text(text):
 
 # Function for making predictions and displaying results
 def predict_and_display(reviews):
+    # preprocessed_reviews = []
+
+    # for i, review in enumerate(reviews):
+    #     try:
+    #         preprocessed_review = preprocess_text(review)
+    #         preprocessed_reviews.append(preprocessed_review)
+    #     except Exception as e:
+    #         st.error(f"Error preprocessing review {i+1}: {str(e)}")
+    #         continue
+
+    # if not preprocessed_reviews:
+    #     st.error("No valid reviews to process.")
+    #     return
+    
     # Preprocess the reviews
     preprocessed_reviews = [preprocess_text(review) for review in reviews]
 
