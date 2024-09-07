@@ -10,7 +10,7 @@ from nltk.stem import LancasterStemmer, WordNetLemmatizer
 import joblib
 
 # Load pre-trained vectorizer and model
-vectorizer = joblib.load('tfdif_vectorizer.joblib')
+vectorizer = joblib.load('tfidf_vectorizer.joblib')
 model = joblib.load('naive_bayes_model.joblib')
 
 # Function to preprocess text
