@@ -4,18 +4,16 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
-
-# Load your Naive Bayes model and TfidfVectorizer
-nb_model_loaded = load('naive_bayes_model.joblib')
-tfidf_vectorizer_loaded = load('tfidf_vectorizer.joblib')
-
-# Preprocessing functions (from previous implementation)
 import re
 import string
 import nltk
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize, sent_tokenize
 from nltk.stem import LancasterStemmer, WordNetLemmatizer
+
+# Load your Naive Bayes model and TfidfVectorizer
+nb_model_loaded = load('naive_bayes_model.joblib')
+tfidf_vectorizer_loaded = load('tfidf_vectorizer.joblib')
 
 # Download necessary NLTK data (if not already downloaded)
 nltk.download('stopwords')
@@ -89,7 +87,9 @@ def main():
         # Predict button
         if st.button('Predict'):
             if user_input:  # Check if the input is not empty
-                predict_and_display([user_input])  # Single sentence prediction
+                # Treat the user input as a review body
+                reviews = [user_input]
+                predict_and_display(reviews)  # Single review prediction
             else:
                 st.error("Please enter a review for prediction.")
     else:  # Option to upload file
@@ -97,12 +97,17 @@ def main():
         if uploaded_file is not None:
             if uploaded_file.type == "text/csv" or uploaded_file.name.endswith('.csv'):
                 data = pd.read_csv(uploaded_file)
+                if 'review_body' in data.columns:
+                    reviews = data['review_body'].tolist()
+                else:
+                    st.error("'review_body' column not found in the uploaded CSV file.")
+                    return
             else:  # Assume text file
-                data = pd.read_table(uploaded_file, header=None, names=['text'])
+                data = pd.read_table(uploaded_file, header=None, names=['review_body'])
+                reviews = data['review_body'].tolist()
 
             # Check if the file has content
             if not data.empty:
-                reviews = data['text'].tolist()
                 predict_and_display(reviews)  # File-based prediction
 
 def predict_and_display(reviews):
