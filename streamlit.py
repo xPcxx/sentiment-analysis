@@ -9,6 +9,7 @@ import string
 
 # Download necessary NLTK data (punkt, stopwords, wordnet)
 nltk.download('punkt')
+nltk.download('punkt_tab')
 nltk.download('stopwords')
 nltk.download('wordnet')
 
