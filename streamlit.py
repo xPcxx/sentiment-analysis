@@ -11,14 +11,22 @@ from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize, sent_tokenize
 from nltk.stem import LancasterStemmer, WordNetLemmatizer
 
-# Load your Naive Bayes model and TfidfVectorizer
-nb_model_loaded = load('naive_bayes_model.joblib')
-tfidf_vectorizer_loaded = load('tfidf_vectorizer.joblib')
+# Ensure NLTK data is downloaded only if necessary
+try:
+    stop_words = set(stopwords.words('english'))
+except LookupError:
+    nltk.download('stopwords')
+    nltk.download('punkt')
+    nltk.download('wordnet')
+    stop_words = set(stopwords.words('english'))
 
-# Download necessary NLTK data (if not already downloaded)
-nltk.download('stopwords')
-nltk.download('punkt')
-nltk.download('wordnet')
+# Load your Naive Bayes model and TfidfVectorizer
+try:
+    nb_model_loaded = load('naive_bayes_model.joblib')
+    tfidf_vectorizer_loaded = load('tfidf_vectorizer.joblib')
+except FileNotFoundError:
+    st.error("Model or vectorizer file not found. Ensure both 'naive_bayes_model.joblib' and 'tfidf_vectorizer.joblib' are present.")
+    st.stop()
 
 # Initialize Lancaster stemmer and lemmatizer
 lancaster_stemmer = LancasterStemmer()
@@ -33,7 +41,6 @@ def remove_punc(text):
     return text.translate(str.maketrans('', '', string.punctuation))
 
 def remove_stopwords(text):
-    stop_words = set(stopwords.words('english'))
     words = text.split()
     filtered_words = [word for word in words if word not in stop_words]
     return " ".join(filtered_words)
