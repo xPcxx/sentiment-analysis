@@ -1,59 +1,52 @@
 import streamlit as st
-from joblib import load
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.ticker as ticker
-import re
-import string
 import nltk
+from nltk.data import find
+from nltk.tokenize import sent_tokenize, word_tokenize
 from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize, sent_tokenize
 from nltk.stem import LancasterStemmer, WordNetLemmatizer
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.naive_bayes import MultinomialNB
+import joblib
+import pandas as pd
+import re
+import emoji
 
-# Load your Naive Bayes model and TfidfVectorizer
-nb_model_loaded = load('naive_bayes_model.joblib')
-tfidf_vectorizer_loaded = load('tfidf_vectorizer.joblib')
+# Ensure the 'punkt' tokenizer data is downloaded
+try:
+    find('tokenizers/punkt')
+except LookupError:
+    nltk.download('punkt')
 
-# Download necessary NLTK data (if not already downloaded)
-nltk.download('stopwords')
-nltk.download('punkt')
-nltk.download('wordnet')
-
-# Initialize Lancaster stemmer and lemmatizer
-lancaster_stemmer = LancasterStemmer()
+# Initialize stemmer, lemmatizer, and stopwords
+stemmer = LancasterStemmer()
 lemmatizer = WordNetLemmatizer()
+stop_words = set(stopwords.words('english'))
 
-# Define preprocessing functions
+# Load model and vectorizer
+tfidf_vectorizer_loaded = joblib.load('tfidf_vectorizer.pkl')
+model_loaded = joblib.load('model.pkl')
+
+# Helper functions
 def remove_html_tags(text):
-    pattern = re.compile('<.*?>')
-    return pattern.sub('', text)
+    clean = re.compile('<.*?>')
+    return re.sub(clean, '', text)
 
 def remove_punc(text):
-    return text.translate(str.maketrans('', '', string.punctuation))
+    return re.sub(r'[^\w\s]', '', text)
 
 def remove_stopwords(text):
-    stop_words = set(stopwords.words('english'))
     words = text.split()
-    filtered_words = [word for word in words if word not in stop_words]
-    return " ".join(filtered_words)
+    return ' '.join(word for word in words if word not in stop_words)
 
 def remove_emoji(text):
-    emoji_pattern = re.compile("["
-                               u"\U0001F600-\U0001F64F"  # emoticons
-                               u"\U0001F300-\U0001F5FF"  # symbols & pictographs
-                               u"\U0001F680-\U0001F6FF"  # transport & map symbols
-                               u"\U0001F1E0-\U0001F1FF"  # flags (iOS)
-                               "]+", flags=re.UNICODE)
-    return emoji_pattern.sub(r'', text)
+    return emoji.replace_emoji(text, replace='')
 
-def apply_stemming(words):
-    return [lancaster_stemmer.stem(word) for word in words]
+def apply_stemming(tokens):
+    return [stemmer.stem(token) for token in tokens]
 
-def apply_lemmatization(words):
-    return [lemmatizer.lemmatize(word) for word in words]
+def apply_lemmatization(tokens):
+    return [lemmatizer.lemmatize(token) for token in tokens]
 
-# Full text preprocessing pipeline
 def preprocess_text(text):
     text = text.lower()
     text = remove_html_tags(text)
@@ -71,76 +64,48 @@ def preprocess_text(text):
     
     return ' '.join([word for sublist in lemmatized_sentences for word in sublist])
 
-# Streamlit application starts here
-def main():
-    # Title of your web app
-    st.title("Amazon Product Review Sentiment Analysis App")
-
-    # Sidebar for navigation
-    st.sidebar.title("Options")
-    option = st.sidebar.selectbox("Choose how to input data", ["Enter text", "Upload file"])
-
-    if option == "Enter text":
-        # Text box for user input
-        user_input = st.text_input("Enter a product review to check sentiment:")
-
-        # Predict button
-        if st.button('Predict'):
-            if user_input:  # Check if the input is not empty
-                # Treat the user input as a review body
-                reviews = [user_input]
-                predict_and_display(reviews)  # Single review prediction
-            else:
-                st.error("Please enter a review for prediction.")
-    else:  # Option to upload file
-        uploaded_file = st.file_uploader("Choose a file", type=['txt', 'csv'])
-        if uploaded_file is not None:
-            if uploaded_file.type == "text/csv" or uploaded_file.name.endswith('.csv'):
-                data = pd.read_csv(uploaded_file)
-                if 'review_body' in data.columns:
-                    reviews = data['review_body'].tolist()
-                else:
-                    st.error("'review_body' column not found in the uploaded CSV file.")
-                    return
-            else:  # Assume text file
-                data = pd.read_table(uploaded_file, header=None, names=['review_body'])
-                reviews = data['review_body'].tolist()
-
-            # Check if the file has content
-            if not data.empty:
-                predict_and_display(reviews)  # File-based prediction
-
 def predict_and_display(reviews):
     # Preprocess the reviews
     preprocessed_reviews = [preprocess_text(review) for review in reviews]
-
+    
     # Transform the preprocessed reviews
     transformed_reviews = tfidf_vectorizer_loaded.transform(preprocessed_reviews)
-
-    # Make predictions
-    results = nb_model_loaded.predict(transformed_reviews)
-
-    # Combine the inputs and predictions into a DataFrame
-    results_df = pd.DataFrame({
-        'Input': reviews,
-        'Prediction': ["Positive" if label == 1 else "Negative" for label in results]
-    })
-
-    # Tabulate and display the results
-    with st.expander("Show/Hide Prediction Table"):
-        st.table(results_df)
-
-    # Display histogram of predictions
-    st.write("Histogram of Predictions:")
-    fig, ax = plt.subplots()
-    prediction_counts = pd.Series(results).value_counts().sort_index()
-    prediction_counts.index = ["Negative", "Positive"]
-    prediction_counts.plot(kind='bar', ax=ax)
-    ax.set_title("Number of Positive and Negative Predictions")
-    ax.set_xlabel("Category")
-    ax.set_ylabel("Count")
-    ax.yaxis.set_major_locator(ticker.MaxNLocator(integer=True))  # Ensure y-axis has integer ticks
-    st.pyplot(fig)
-
+    
+    # Predict sentiment
+    predictions = model_loaded.predict(transformed_reviews)
+    prediction_proba = model_loaded.predict_proba(transformed_reviews)
+    
+    # Display results
+    for i, review in enumerate(reviews):
+        st.write(f"**Review:** {review}")
+        st.write(f"**Prediction:** {'Positive' if predictions[i] == 1 else 'Negative'}")
+        st.write(f"**Probability:** {prediction_proba[i]}")
+        
+def main():
+    st.title('Sentiment Analysis App')
+    
+    st.sidebar.title('Options')
+    upload_option = st.sidebar.radio('Choose Input Method', ('Enter Review', 'Upload File'))
+    
+    if upload_option == 'Enter Review':
+        user_input = st.text_area("Enter your review:")
+        
+        if user_input:  # Check if the input is not empty
+            reviews = [user_input]  # Treat the user input as a review body
+            predict_and_display(reviews)
+        else:
+            st.error("Please enter a review for prediction.")
+    
+    elif upload_option == 'Upload File':
+        uploaded_file = st.file_uploader("Choose a CSV file", type="csv")
+        
+        if uploaded_file is not None:
+            data = pd.read_csv(uploaded_file)
+            if 'review_body' in data.columns:
+                reviews = data['review_body'].tolist()
+                predict_and_display(reviews)
+            else:
+                st.error("The uploaded CSV file must contain a 'review_body' column.")
+                
 if __name__ == '__main__':
     main()
