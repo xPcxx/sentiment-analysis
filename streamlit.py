@@ -14,6 +14,7 @@ from nltk.stem import LancasterStemmer, WordNetLemmatizer
 # Ensure NLTK data is downloaded only if necessary
 try:
     stop_words = set(stopwords.words('english'))
+    nltk.data.find('tokenizers/punkt')
 except LookupError:
     nltk.download('stopwords')
     nltk.download('punkt')
@@ -78,6 +79,25 @@ def preprocess_text(text):
     
     return ' '.join([word for sublist in lemmatized_sentences for word in sublist])
 
+# Function for making predictions and displaying results
+def predict_and_display(reviews):
+    # Preprocess the reviews
+    preprocessed_reviews = [preprocess_text(review) for review in reviews]
+
+    # Transform the preprocessed reviews using the vectorizer
+    transformed_reviews = tfidf_vectorizer_loaded.transform(preprocessed_reviews)
+
+    # Predict sentiment using the Naive Bayes model
+    predictions = nb_model_loaded.predict(transformed_reviews)
+
+    # Map numeric predictions to labels (assuming 1 = Positive, 0 = Negative)
+    sentiment_labels = ['Positive' if pred == 1 else 'Negative' for pred in predictions]
+
+    # Display results
+    for i, review in enumerate(reviews):
+        st.write(f"Review: {review}")
+        st.write(f"Predicted Sentiment: {sentiment_labels[i]}")
+
 # Streamlit application starts here
 def main():
     # Title of your web app
@@ -116,38 +136,6 @@ def main():
             # Check if the file has content
             if not data.empty:
                 predict_and_display(reviews)  # File-based prediction
-
-def predict_and_display(reviews):
-    # Preprocess the reviews
-    preprocessed_reviews = [preprocess_text(review) for review in reviews]
-
-    # Transform the preprocessed reviews
-    transformed_reviews = tfidf_vectorizer_loaded.transform(preprocessed_reviews)
-
-    # Make predictions
-    results = nb_model_loaded.predict(transformed_reviews)
-
-    # Combine the inputs and predictions into a DataFrame
-    results_df = pd.DataFrame({
-        'Input': reviews,
-        'Prediction': ["Positive" if label == 1 else "Negative" for label in results]
-    })
-
-    # Tabulate and display the results
-    with st.expander("Show/Hide Prediction Table"):
-        st.table(results_df)
-
-    # Display histogram of predictions
-    st.write("Histogram of Predictions:")
-    fig, ax = plt.subplots()
-    prediction_counts = pd.Series(results).value_counts().sort_index()
-    prediction_counts.index = ["Negative", "Positive"]
-    prediction_counts.plot(kind='bar', ax=ax)
-    ax.set_title("Number of Positive and Negative Predictions")
-    ax.set_xlabel("Category")
-    ax.set_ylabel("Count")
-    ax.yaxis.set_major_locator(ticker.MaxNLocator(integer=True))  # Ensure y-axis has integer ticks
-    st.pyplot(fig)
 
 if __name__ == '__main__':
     main()
