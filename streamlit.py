@@ -98,7 +98,34 @@ def display_pie_chart(predictions):
 
     # Display the pie chart using Streamlit
     st.pyplot(fig)
+    
+def display_bar_charts(avg_star_rating, num_verified, num_unverified):
+    # Create a figure and axis
+    fig, ax = plt.subplots(2, 1, figsize=(10, 8))  # Arrange charts vertically in two rows
 
+    # Horizontal bar chart for Average Star Rating
+    ax[0].barh(['Average Star Rating'], [avg_star_rating], color='skyblue')
+    ax[0].set_xlim(0, 5)  # Assuming star ratings are between 0 and 5
+    ax[0].set_title('Average Star Rating')
+    ax[0].set_xlabel('Rating')
+    
+    # Horizontal bar chart for Verified and Unverified Purchases
+    ax[1].barh(['Verified Purchases', 'Unverified Purchases'], [num_verified, num_unverified], color=['green', 'red'])
+    ax[1].set_title('Purchase Verification')
+    ax[1].set_xlabel('Count')
+
+    # Customize the appearance of the bar charts
+    for axis in ax:
+        axis.tick_params(axis='x', colors='black')
+        axis.tick_params(axis='y', colors='black')
+        axis.grid(axis='x', linestyle='--')
+
+    # Adjust the layout to make it visually better
+    plt.tight_layout()
+
+    # Display the bar charts using Streamlit
+    st.pyplot(fig)
+    
 # Main function
 def main():
     st.title("Product Review Sentiment Analysis")
@@ -145,20 +172,22 @@ def main():
                 # Display the result in a pie chart
                 display_pie_chart(predictions)
 
-                # Display the average star rating if available
+                # Display the average star rating and purchase information as bar charts
                 if avg_star_rating is not None:
-                    st.write(f"Average Star Rating: {avg_star_rating:.2f}")
+                    # Initialize counts for verified and unverified purchases
+                    num_verified = 0
+                    num_unverified = 0
 
-                # Check if 'verified_purchase' column is present
-                if 'verified_purchase' in df.columns:
-                    verified_purchases = df['verified_purchase'].value_counts()
-                    num_verified = verified_purchases.get('Y', 0)
-                    num_unverified = verified_purchases.get('N', 0)
+                    # Check if 'verified_purchase' column is present
+                    if 'verified_purchase' in df.columns:
+                        verified_purchases = df['verified_purchase'].value_counts()
+                        num_verified = verified_purchases.get('Y', 0)
+                        num_unverified = verified_purchases.get('N', 0)
                     
-                    st.write(f"Number of verified purchases: {num_verified}")
-                    st.write(f"Number of unverified purchases: {num_unverified}")
+                    # Display bar charts
+                    display_bar_charts(avg_star_rating, num_verified, num_unverified)
                 else:
-                    st.write("Verified purchase information is not available.")
+                    st.write("Average star rating information is not available.")
             else:
                 st.error("The file does not contain the 'review_body' column.")
 
