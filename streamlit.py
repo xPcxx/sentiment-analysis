@@ -101,18 +101,27 @@ def display_pie_chart(predictions):
     
 def display_bar_charts(avg_star_rating, num_verified, num_unverified):
     # Create a figure and axis
-    fig, ax = plt.subplots(2, 1, figsize=(10, 8))  # Arrange charts vertically in two rows
+    fig, ax = plt.subplots(2, 1, figsize=(10, 6))  # Arrange charts vertically, adjust height
+
+    bar_height = 0.3  # Make the bars thinner by setting a smaller height
 
     # Horizontal bar chart for Average Star Rating
-    ax[0].barh(['Average Star Rating'], [avg_star_rating], color='skyblue')
+    ax[0].barh(['Average Star Rating'], [avg_star_rating], color='skyblue', height=bar_height)
     ax[0].set_xlim(0, 5)  # Assuming star ratings are between 0 and 5
     ax[0].set_title('Average Star Rating')
     ax[0].set_xlabel('Rating')
-    
+
+    # Display the value at the end of the bar
+    ax[0].text(avg_star_rating + 0.1, 0, f'{avg_star_rating:.2f}', va='center', ha='left', fontsize=12, color='black')
+
     # Horizontal bar chart for Verified and Unverified Purchases
-    ax[1].barh(['Verified Purchases', 'Unverified Purchases'], [num_verified, num_unverified], color=['green', 'red'])
+    ax[1].barh(['Verified Purchases', 'Unverified Purchases'], [num_verified, num_unverified], color=['green', 'red'], height=bar_height)
     ax[1].set_title('Purchase Verification')
     ax[1].set_xlabel('Count')
+
+    # Display the values at the end of each bar
+    ax[1].text(num_verified + 0.1, 0, str(num_verified), va='center', ha='left', fontsize=12, color='black')
+    ax[1].text(num_unverified + 0.1, 1, str(num_unverified), va='center', ha='left', fontsize=12, color='black')
 
     # Customize the appearance of the bar charts
     for axis in ax:
@@ -125,6 +134,7 @@ def display_bar_charts(avg_star_rating, num_verified, num_unverified):
 
     # Display the bar charts using Streamlit
     st.pyplot(fig)
+
     
 # Main function
 def main():
