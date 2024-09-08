@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 
 # Download necessary NLTK data (punkt, stopwords, wordnet)
 nltk.download('punkt')
-nltk.download('punkt_tab')
+nltk.download('punkt_tab')  # Do not remove this as requested
 nltk.download('stopwords')
 nltk.download('wordnet')
 
@@ -61,10 +61,7 @@ def predict_and_display(reviews):
 
     return predictions
 
-
-import matplotlib.pyplot as plt
-
-# Function to display the pie chart 
+# Function to display the pie chart and optional star rating
 def display_pie_chart(predictions):
     # Count positive and negative predictions
     positive_count = sum(predictions)
@@ -98,12 +95,9 @@ def display_pie_chart(predictions):
 
     # Add a legend below the pie chart, with a small color box for each label
     plt.legend(wedges, labels, title="Sentiment", loc="upper center", bbox_to_anchor=(0.5, -0.05), fancybox=True, shadow=True, ncol=2)
-    
+
     # Display the pie chart using Streamlit
     st.pyplot(fig)
-
-
-
 
 # Main function
 def main():
@@ -134,14 +128,40 @@ def main():
         
         if uploaded_file is not None:
             df = pd.read_csv(uploaded_file)
+            
             if 'review_body' in df.columns:
                 reviews = df['review_body'].tolist()
+
+                # Check if 'star_rating' column is present
+                if 'star_rating' in df.columns:
+                    star_ratings = df['star_rating'].tolist()
+                    avg_star_rating = sum(star_ratings) / len(star_ratings)
+                else:
+                    avg_star_rating = None  # No star rating provided
+
+                # Get predictions
                 predictions = predict_and_display(reviews)
-                
+
                 # Display the result in a pie chart
                 display_pie_chart(predictions)
+
+                # Display the average star rating if available
+                if avg_star_rating is not None:
+                    st.write(f"Average Star Rating: {avg_star_rating:.2f}")
+
+                # Check if 'verified_purchase' column is present
+                if 'verified_purchase' in df.columns:
+                    verified_purchases = df['verified_purchase'].value_counts()
+                    num_verified = verified_purchases.get('Y', 0)
+                    num_unverified = verified_purchases.get('N', 0)
+                    
+                    st.write(f"Number of verified purchases: {num_verified}")
+                    st.write(f"Number of unverified purchases: {num_unverified}")
+                else:
+                    st.write("Verified purchase information is not available.")
             else:
                 st.error("The file does not contain the 'review_body' column.")
 
+                
 if __name__ == '__main__':
-    main()
+    main() 
