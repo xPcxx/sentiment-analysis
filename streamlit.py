@@ -3,28 +3,25 @@ import joblib
 import nltk
 from nltk.tokenize import sent_tokenize, word_tokenize
 from nltk.corpus import stopwords
-from nltk.stem import WordNetLemmatizer
 from nltk.stem import LancasterStemmer
 import string
 import pandas as pd
 import matplotlib.pyplot as plt
 
-# Download necessary NLTK data (punkt, stopwords, wordnet)
+# Download necessary NLTK data (punkt, stopwords)
 nltk.download('punkt')
 nltk.download('punkt_tab')  # Do not remove this as requested
 nltk.download('stopwords')
-nltk.download('wordnet')
 
 # Load saved models and vectorizer
 model = joblib.load('naive_bayes_model.joblib')
 tfidf_vectorizer_loaded = joblib.load('tfidf_vectorizer.joblib')
 
-# Initialize the lemmatizer, stemmer, and stop words
-lemmatizer = WordNetLemmatizer()
+# Initialize the stemmer and stop words
 stemmer = LancasterStemmer()
 stop_words = set(stopwords.words('english'))
 
-# Function to preprocess text
+# Function to preprocess text 
 def preprocess_text(text):
     # Convert to lowercase
     text = str(text).lower()
@@ -36,14 +33,13 @@ def preprocess_text(text):
     sentences = sent_tokenize(text)
     tokenized_sentences = [word_tokenize(sentence) for sentence in sentences]
 
-    # Stemming and Lemmatization
+    # Stemming
     preprocessed_text = []
     for sentence in tokenized_sentences:
         for word in sentence:
             if word not in stop_words:
-                # Apply lemmatization followed by stemming
-                lemmatized_word = lemmatizer.lemmatize(word)
-                stemmed_word = stemmer.stem(lemmatized_word)
+                # Apply stemming
+                stemmed_word = stemmer.stem(word)
                 preprocessed_text.append(stemmed_word)
 
     return ' '.join(preprocessed_text)
@@ -53,7 +49,7 @@ def predict_and_display(reviews):
     # Preprocess the reviews
     preprocessed_reviews = [preprocess_text(review) for review in reviews]
 
-    # Transform the preprocessed reviews using the vectorizer
+    # Transform the preprocessed reviews using the vectorizer (with n-gram)
     transformed_reviews = tfidf_vectorizer_loaded.transform(preprocessed_reviews)
 
     # Make predictions using the loaded model
@@ -98,7 +94,7 @@ def display_pie_chart(predictions):
 
     # Display the pie chart using Streamlit
     st.pyplot(fig)
-    
+ 
 def display_bar_charts(avg_star_rating, num_verified, num_unverified):
     # Create a figure and axis
     fig, ax = plt.subplots(2, 1, figsize=(10, 4))  # Make the entire chart thinner by reducing height
@@ -132,7 +128,7 @@ def display_bar_charts(avg_star_rating, num_verified, num_unverified):
 
     # Display the bar charts using Streamlit
     st.pyplot(fig)
-
+  
 # Main function
 def main():
     st.title("Product Review Sentiment Analysis")
